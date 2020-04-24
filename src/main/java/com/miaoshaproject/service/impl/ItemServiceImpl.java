@@ -6,14 +6,20 @@ import com.miaoshaproject.dataobject.ItemDo;
 import com.miaoshaproject.dataobject.ItemStockDo;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EnumBusinessError;
+import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.ItemModel;
 import com.miaoshaproject.service.model.PromoModel;
 import com.miaoshaproject.validator.ValidationResult;
 import com.miaoshaproject.validator.ValidatorImpl;
+import org.apache.rocketmq.client.exception.MQBrokerException;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +33,9 @@ public class ItemServiceImpl implements ItemService {
     @Autowired
     private ValidatorImpl validator;
 
+    @Autowired
+    private MqProducer producer;
+
     @Autowired(required = false)
     private ItemDoMapper itemDoMapper;
 
@@ -35,6 +44,12 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired(required = false)
     private PromoService promoService;
+
+    @Autowired
+    private MqProducer mqProducer;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     /**
      * 从ItemModel获取ItemDo
@@ -122,8 +137,16 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public boolean decreaseStock(Integer itemId, Integer amount) {
-        int affectedRow = itemStockDoMapper.decreaseStock(itemId,amount);
-        if(affectedRow > 0){
+        //先减去redis中的库存
+        long  result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount*-1);
+        if(result > 0){
+            //库存更新成功之后将消息投递到nameServer
+            boolean  mqResult = mqProducer.asyncReduceStock(itemId,amount);
+            //消息投递不成功,恢复redis中的数据并返回false
+            if(!mqResult) {
+                redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
+                return false;
+            }
             //更新库存成功
             return true;
         }else {
