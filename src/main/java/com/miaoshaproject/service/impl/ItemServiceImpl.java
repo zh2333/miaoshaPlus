@@ -14,12 +14,14 @@ import com.miaoshaproject.validator.ValidationResult;
 import com.miaoshaproject.validator.ValidatorImpl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.Validator;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,6 +37,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired(required = false)
     private PromoService promoService;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
 
     /**
      * 从ItemModel获取ItemDo
@@ -119,11 +124,25 @@ public class ItemServiceImpl implements ItemService {
         return itemModel;
     }
 
+    //获取redis中的item
+    @Override
+    public ItemModel getItemByIdInCache(Integer id) {
+        //先去redis中取数据,如果取不到再去数据库中取
+        ItemModel  itemModel = (ItemModel)redisTemplate.opsForValue().get("item_validate_"+id);
+        if(itemModel == null) {
+            this.getItemById(id);
+            redisTemplate.opsForValue().set("item_validate_" + id,itemModel);
+            redisTemplate.expire("item_validate_"+id,10, TimeUnit.MINUTES);//超时时间
+        }
+        return itemModel;
+    }
+
     @Override
     @Transactional
     public boolean decreaseStock(Integer itemId, Integer amount) {
-        int affectedRow = itemStockDoMapper.decreaseStock(itemId,amount);
-        if(affectedRow > 0){
+        //先从redis中减库存,再将redis中的库存和mysql数据库中的库存进行同步
+        long result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount*-1);
+        if(result >= 0){
             //更新库存成功
             return true;
         }else {

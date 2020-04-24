@@ -28,9 +28,9 @@ public class OrderServiceImpl implements OrderService {
     private ItemService itemService;
     @Autowired
     private UserService userService;
-    @Autowired
+    @Autowired(required = false)
     private OrderDoMapper orderDoMapper;
-    @Autowired
+    @Autowired(required = false)
     private SequenceDoMapper sequenceDoMapper;
 
 
@@ -38,13 +38,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderModel createOrder(Integer userId, Integer itemId, Integer promoId,Integer amount) throws BusinessException {
         //1.校验下单状态,下单的商品是否存在,用户是否合法,购买数量是否正确
-        ItemModel itemModel = itemService.getItemById(itemId);
+        ItemModel itemModel = itemService.getItemByIdInCache(itemId);
         if(itemModel == null){
             throw new BusinessException(EnumBusinessError.PARAMETER_VALIDATION_ERROR,"商品信息不存在");
         }
 
         //校验用户
-        UserModel userModel = userService.getUserById(userId);
+        UserModel userModel = userService.getUserByIdInCache(userId);
         if(userModel == null){
             throw new BusinessException(EnumBusinessError.PARAMETER_VALIDATION_ERROR,"用户信息不存在");
         }

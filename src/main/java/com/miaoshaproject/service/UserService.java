@@ -6,6 +6,7 @@ import com.miaoshaproject.service.model.UserModel;
 public interface UserService {
     //通过用户id 获取用户信息
     UserModel getUserById(Integer id);
+    UserModel getUserByIdInCache(Integer id);
     void register(UserModel userModel) throws BusinessException;
 
     /**
