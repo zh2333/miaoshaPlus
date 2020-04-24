@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.validation.Validator;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -101,6 +102,19 @@ public class ItemServiceImpl implements ItemService {
         ItemStockDo itemStockDo = this.converItemStockFromItemModel(itemModel);
         itemStockDoMapper.insertSelective(itemStockDo);
         return this.getItemById(itemModel.getId());
+    }
+
+    //获取redis中的item
+    @Override
+    public ItemModel getItemByIdInCache(Integer id) {
+        //先去redis中取数据,如果取不到再去数据库中取
+        ItemModel  itemModel = (ItemModel)redisTemplate.opsForValue().get("item_validate_"+id);
+        if(itemModel == null) {
+            this.getItemById(id);
+            redisTemplate.opsForValue().set("item_validate_" + id,itemModel);
+            redisTemplate.expire("item_validate_"+id,10, TimeUnit.MINUTES);//超时时间
+        }
+        return itemModel;
     }
 
     @Override
