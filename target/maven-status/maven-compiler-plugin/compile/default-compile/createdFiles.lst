@@ -5,7 +5,6 @@ com\miaoshaproject\service\model\UserModel.class
 com\miaoshaproject\dataobject\UserPasswordDo.class
 com\miaoshaproject\response\CommonReturnType.class
 com\miaoshaproject\service\impl\UserServiceImpl.class
-com\miaoshaproject\config\WebServerConfiguration$1.class
 com\miaoshaproject\validator\ValidatorImpl.class
 com\miaoshaproject\service\UserService.class
 com\miaoshaproject\service\impl\PromoServiceImpl.class
@@ -30,7 +29,6 @@ com\miaoshaproject\controller\UserController.class
 com\miaoshaproject\service\model\PromoModel.class
 com\miaoshaproject\dataobject\OrderDo.class
 com\miaoshaproject\controller\viewobject\UserVO.class
-com\miaoshaproject\config\WebServerConfiguration.class
 com\miaoshaproject\service\model\ItemModel.class
 com\miaoshaproject\dao\OrderDoMapper.class
 com\miaoshaproject\service\model\OrderModel.class
