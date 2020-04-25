@@ -89,6 +89,14 @@ public class OrderServiceImpl implements OrderService {
         //加上商品的销量
         itemService.increaseSales(itemId,amount);
 
+        //异步更新库存
+        boolean mqResult = itemService.asyncDescreaseStock(itemId, amount);
+        //消息发送失败,需要回滚redis内存
+        if(!mqResult) {
+            itemService.increaseStock(itemId, amount);
+            throw new BusinessException(EnumBusinessError.MQ_SEND_FAIL);
+        }
+
         //5.返回前端
         return orderModel;
     }

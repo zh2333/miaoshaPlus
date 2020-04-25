@@ -117,6 +117,13 @@ public class ItemServiceImpl implements ItemService {
         return itemModel;
     }
 
+    //减库存消息投递
+    @Override
+    public boolean asyncDescreaseStock(Integer itemId, Integer amount) {
+        boolean  mqResult = mqProducer.asyncReduceStock(itemId,amount);
+        return mqResult;
+    }
+
     @Override
     public List<ItemModel> listItem() {
         List<ItemDo> itemDoList = itemDoMapper.listItem();
@@ -154,18 +161,26 @@ public class ItemServiceImpl implements ItemService {
         //先减去redis中的库存
         long  result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount*-1);
         if(result > 0){
-            //库存更新成功之后将消息投递到nameServer
-            boolean  mqResult = mqProducer.asyncReduceStock(itemId,amount);
-            //消息投递不成功,恢复redis中的数据并返回false
-            if(!mqResult) {
-                redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
-                return false;
-            }
+//            //库存更新成功之后将消息投递到nameServer
+//            boolean  mqResult = mqProducer.asyncReduceStock(itemId,amount);
+//            //消息投递不成功,恢复redis中的数据并返回false
+//            if(!mqResult) {
+//                redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
+//                return false;
+//            }
             //更新库存成功
             return true;
         }else {
+            //更新失败回滚redis内存
+            increaseStock(itemId, amount);
             return false;
         }
+    }
+
+    @Override
+    public boolean increaseStock(Integer itemId, Integer amount) {
+        redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
+        return true;
     }
 
     @Override
