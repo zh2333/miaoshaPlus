@@ -166,7 +166,7 @@
             <!--允许移动文件-->
             <verbose>true</verbose>
             <!--允许覆盖,当后序项目添加表的时候,改为false,否则劳动成果会全部丢失-->
-            <overwrite>false</overwrite>
+            <overwrite>true</overwrite>
             <configurationFile>
               src/main/resources/mybatis-generator.xml
             </configurationFile>

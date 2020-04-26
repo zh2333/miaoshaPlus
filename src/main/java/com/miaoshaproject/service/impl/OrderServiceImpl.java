@@ -2,8 +2,10 @@ package com.miaoshaproject.service.impl;
 
 import com.miaoshaproject.dao.OrderDoMapper;
 import com.miaoshaproject.dao.SequenceDoMapper;
+import com.miaoshaproject.dao.StockLogDoMapper;
 import com.miaoshaproject.dataobject.OrderDo;
 import com.miaoshaproject.dataobject.SequenceDo;
+import com.miaoshaproject.dataobject.StockLogDo;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EnumBusinessError;
 import com.miaoshaproject.service.ItemService;
@@ -36,10 +38,13 @@ public class OrderServiceImpl implements OrderService {
     @Autowired(required = false)
     private SequenceDoMapper sequenceDoMapper;
 
+    @Autowired(required = false)
+    private StockLogDoMapper stockLogDoMapper;
+
 
     @Override
     @Transactional
-    public OrderModel createOrder(Integer userId, Integer itemId, Integer promoId,Integer amount) throws BusinessException {
+    public OrderModel createOrder(Integer userId, Integer itemId, Integer promoId,Integer amount, String stockLogId) throws BusinessException {
         //1.校验下单状态,下单的商品是否存在,用户是否合法,购买数量是否正确
         ItemModel itemModel = itemService.getItemByIdInCache(itemId);
         if(itemModel == null){
@@ -91,6 +96,16 @@ public class OrderServiceImpl implements OrderService {
 
         //加上商品的销量
         itemService.increaseSales(itemId,amount);
+
+        //订单创建完成,设置库存流水状态为成功
+        StockLogDo stockLogDo = stockLogDoMapper.selectByPrimaryKey(stockLogId);
+        if(stockLogDo == null) {
+            throw new BusinessException(EnumBusinessError.UNKNOWN_ERROR);
+        }
+        stockLogDo.setStatus(2);
+        stockLogDoMapper.updateByPrimaryKeySelective(stockLogDo);
+
+
 
 //        //在最近一个transactional标签执行完成之后执行afterCommit里面的内容
 //        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {

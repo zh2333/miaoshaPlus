@@ -4,6 +4,7 @@ import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EnumBusinessError;
 import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.response.CommonReturnType;
+import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.OrderService;
 import com.miaoshaproject.service.model.OrderModel;
 import com.miaoshaproject.service.model.UserModel;
@@ -26,6 +27,9 @@ public class OrderController extends BaseController{
     @Autowired
     private MqProducer mqProducer;
 
+    @Autowired
+    private ItemService itemService;
+
     //封装下单请求
     @RequestMapping(value = "/createorder",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
     @ResponseBody
@@ -38,10 +42,16 @@ public class OrderController extends BaseController{
            throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
 
        }
+
+       //创建订单之前,初始化库存流水init状态
+        String stockLogId = itemService.initStockLog(itemId,amount);
+
+
        //获取登录用户信息
         UserModel userModel = (UserModel)httpServletRequest.getSession().getAttribute("LOGIN_USER");
 //        OrderModel orderModel = orderService.createOrder(userModel.getId(),itemId,promoId,amount);
-        if(!mqProducer.transactionAsyncReduceStock(userModel.getId(),itemId,promoId,amount)){
+        //再完成对应的下单事务型消息机制
+        if(!mqProducer.transactionAsyncReduceStock(userModel.getId(),itemId,promoId,amount,stockLogId)){
             throw new BusinessException(EnumBusinessError.UNKNOWN_ERROR,"下单失败");
         }
         return CommonReturnType.create(null);

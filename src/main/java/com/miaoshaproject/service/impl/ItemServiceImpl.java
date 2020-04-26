@@ -2,8 +2,10 @@ package com.miaoshaproject.service.impl;
 
 import com.miaoshaproject.dao.ItemDoMapper;
 import com.miaoshaproject.dao.ItemStockDoMapper;
+import com.miaoshaproject.dao.StockLogDoMapper;
 import com.miaoshaproject.dataobject.ItemDo;
 import com.miaoshaproject.dataobject.ItemStockDo;
+import com.miaoshaproject.dataobject.StockLogDo;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EnumBusinessError;
 import com.miaoshaproject.mq.MqProducer;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.validation.Validator;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -51,6 +54,9 @@ public class ItemServiceImpl implements ItemService {
 
     @Autowired
     private RedisTemplate redisTemplate;
+
+    @Autowired(required = false)
+    private StockLogDoMapper stockLogDoMapper;
 
     /**
      * 从ItemModel获取ItemDo
@@ -189,6 +195,21 @@ public class ItemServiceImpl implements ItemService {
         itemDoMapper.increaseSales(itemId,amount);
     }
 
+    //初始化库存流水
+    @Override
+    @Transactional
+    public String initStockLog(Integer itemId, Integer amount) {
+        StockLogDo stockLogDo = new StockLogDo();
+        stockLogDo.setItemId(itemId);
+        stockLogDo.setAmount(amount);
+        stockLogDo.setStatus(1);
+        //使用UUID创建stocklogid
+        stockLogDo.setStockLogId(UUID.randomUUID().toString().replace("-",""));
+        stockLogDoMapper.insertSelective(stockLogDo);//插入库存流水
+
+        return stockLogDo.getStockLogId();
+    }
+
     /**
      * 由itemDo和itemStockDo获取ItemModel
      * @param itemDo
@@ -200,6 +221,7 @@ public class ItemServiceImpl implements ItemService {
         BeanUtils.copyProperties(itemDo,itemModel);
         itemModel.setPrice(new BigDecimal(itemDo.getPrice()));
         itemModel.setStock(itemStockDo.getStock());
+
 
         return itemModel;
     }

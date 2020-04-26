@@ -52,7 +52,7 @@
 <!--            <table tableName="sequence_info" domainObjectName="SequenceDo" enableCountByExample="false"-->
 <!--                   enableUpdateByExample="false" enableDeleteByExample="false" enableSelectByExample="false"-->
 <!--                   selectByExampleQueryId="false"></table>-->
-            <table tableName="promo" domainObjectName="PromoDo" enableCountByExample="false"
+            <table tableName="stock_log" domainObjectName="StockLogDo" enableCountByExample="false"
                    enableUpdateByExample="false" enableDeleteByExample="false" enableSelectByExample="false"
                    selectByExampleQueryId="false"></table>
 
