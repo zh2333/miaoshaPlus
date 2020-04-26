@@ -9,6 +9,7 @@ import com.miaoshaproject.service.OrderService;
 import com.miaoshaproject.service.model.OrderModel;
 import com.miaoshaproject.service.model.UserModel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,9 @@ public class OrderController extends BaseController{
     @Autowired
     private ItemService itemService;
 
+    @Autowired
+    private RedisTemplate redisTemplate;
+
     //封装下单请求
     @RequestMapping(value = "/createorder",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
     @ResponseBody
@@ -43,6 +47,10 @@ public class OrderController extends BaseController{
 
        }
 
+       //先判断库存是否售罄
+        if(redisTemplate.hasKey("promo_item_stock_invalid_"+itemId)){
+            throw new BusinessException(EnumBusinessError.STOCK_NOT_ENOUGH);
+        }
        //创建订单之前,初始化库存流水init状态
         String stockLogId = itemService.initStockLog(itemId,amount);
 

@@ -167,14 +167,11 @@ public class ItemServiceImpl implements ItemService {
         //先减去redis中的库存
         long  result = redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount*-1);
         if(result > 0){
-//            //库存更新成功之后将消息投递到nameServer
-//            boolean  mqResult = mqProducer.asyncReduceStock(itemId,amount);
-//            //消息投递不成功,恢复redis中的数据并返回false
-//            if(!mqResult) {
-//                redisTemplate.opsForValue().increment("promo_item_stock_"+itemId,amount.intValue());
-//                return false;
-//            }
             //更新库存成功
+            return true;
+        }else if(result == 0){
+            //打上库存售罄的标识
+            redisTemplate.opsForValue().set("promo_item_stock_invalid_"+itemId,"true");
             return true;
         }else {
             //更新失败回滚redis内存
