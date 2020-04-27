@@ -6,8 +6,10 @@ import com.miaoshaproject.mq.MqProducer;
 import com.miaoshaproject.response.CommonReturnType;
 import com.miaoshaproject.service.ItemService;
 import com.miaoshaproject.service.OrderService;
+import com.miaoshaproject.service.PromoService;
 import com.miaoshaproject.service.model.OrderModel;
 import com.miaoshaproject.service.model.UserModel;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
@@ -34,18 +36,58 @@ public class OrderController extends BaseController{
     @Autowired
     private RedisTemplate redisTemplate;
 
+    @Autowired
+    private PromoService promoService;
+
+    //生成秒杀令牌
+    @RequestMapping(value = "/generatetoken",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
+    @ResponseBody
+    public CommonReturnType createOrder(@RequestParam(name = "itemId")Integer itemId,
+                                        @RequestParam(name = "promoId",required = false)Integer promoId) throws BusinessException {
+        String token = httpServletRequest.getParameterMap().get("token")[0];
+        if(StringUtils.isEmpty(token)){
+            throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
+        }
+        UserModel userModel = (UserModel)redisTemplate.opsForValue().get(token);
+        if(userModel == null) {
+            throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
+        }
+
+        //获取秒杀访问令牌
+        String promoToken = promoService.generateSecondKillToken(promoId,itemId,userModel.getId());
+        if(promoToken == null) {
+            throw new BusinessException(EnumBusinessError.PARAMETER_VALIDATION_ERROR,"生成令牌失败");
+        }
+        return CommonReturnType.create(token);
+    }
+
     //封装下单请求
     @RequestMapping(value = "/createorder",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
     @ResponseBody
     public CommonReturnType createOrder(@RequestParam(name = "itemId")Integer itemId,
                                         @RequestParam(name = "amount")Integer amount,
-                                        @RequestParam(name = "promoId",required = false)Integer promoId) throws BusinessException {
+                                        @RequestParam(name = "promoId",required = false)Integer promoId,
+                                        @RequestParam(name = "promoToken",required = false)String promoToken) throws BusinessException {
 
-        Boolean isLogin = (Boolean)httpServletRequest.getSession().getAttribute("IS_LOGIN");
-       if(isLogin == null || !isLogin.booleanValue()){
-           throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
+        String token = httpServletRequest.getParameterMap().get("token")[0];
+        if(StringUtils.isEmpty(token)){
+            throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
+        }
+        UserModel userModel = (UserModel)redisTemplate.opsForValue().get(token);
+        if(userModel == null) {
+            throw new BusinessException(EnumBusinessError.USER_NOT_LOGIN,"请先登录后再下单");
+        }
 
-       }
+        if(promoId != null) {
+            String inRedisPromoToken = (String)redisTemplate.opsForValue().get("promo_ token_" + promoId+"_userId_"+userModel.getId()+"_itemId_"+itemId);
+            if(inRedisPromoToken == null) {
+                throw new BusinessException(EnumBusinessError.PARAMETER_VALIDATION_ERROR,"秒杀令牌校验失败");
+            }
+            if(StringUtils.equals(promoToken,inRedisPromoToken)) {
+                throw new BusinessException(EnumBusinessError.PARAMETER_VALIDATION_ERROR,"秒杀令牌校验失败");
+            }
+        }
+
 
        //先判断库存是否售罄
         if(redisTemplate.hasKey("promo_item_stock_invalid_"+itemId)){
@@ -54,9 +96,8 @@ public class OrderController extends BaseController{
        //创建订单之前,初始化库存流水init状态
         String stockLogId = itemService.initStockLog(itemId,amount);
 
-
        //获取登录用户信息
-        UserModel userModel = (UserModel)httpServletRequest.getSession().getAttribute("LOGIN_USER");
+//        UserModel userModel = (UserModel)httpServletRequest.getSession().getAttribute("LOGIN_USER");
 //        OrderModel orderModel = orderService.createOrder(userModel.getId(),itemId,promoId,amount);
         //再完成对应的下单事务型消息机制
         if(!mqProducer.transactionAsyncReduceStock(userModel.getId(),itemId,promoId,amount,stockLogId)){
