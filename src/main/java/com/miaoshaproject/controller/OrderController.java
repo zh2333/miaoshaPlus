@@ -1,5 +1,6 @@
 package com.miaoshaproject.controller;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.miaoshaproject.error.BusinessException;
 import com.miaoshaproject.error.EnumBusinessError;
 import com.miaoshaproject.mq.MqProducer;
@@ -50,8 +51,12 @@ public class OrderController extends BaseController{
     @Autowired(required = false)
     private ExecutorService executorService;
 
+    @Autowired(required = false)
+    private RateLimiter orderRateLimiter;
+
     @PostConstruct
     public void init() {
+        orderRateLimiter = RateLimiter.create(300);//每秒钟10个请求
         executorService = Executors.newFixedThreadPool(20);
     }
 
@@ -119,6 +124,11 @@ public class OrderController extends BaseController{
                                         @RequestParam(name = "amount")Integer amount,
                                         @RequestParam(name = "promoId",required = false)Integer promoId,
                                         @RequestParam(name = "promoToken",required = false)String promoToken) throws BusinessException {
+
+        //尝试拿令牌,如果拿不到就返回false
+        if(!orderRateLimiter.tryAcquire()){
+            throw new BusinessException(EnumBusinessError.RATELIMITER);
+        }
 
         String token = httpServletRequest.getParameterMap().get("token")[0];
         if(StringUtils.isEmpty(token)){
