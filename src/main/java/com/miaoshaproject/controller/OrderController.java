@@ -42,7 +42,7 @@ public class OrderController extends BaseController{
     //生成秒杀令牌
     @RequestMapping(value = "/generatetoken",method = {RequestMethod.POST},consumes = {CONTENT_TYPE_FORMED})
     @ResponseBody
-    public CommonReturnType createOrder(@RequestParam(name = "itemId")Integer itemId,
+    public CommonReturnType generateToken(@RequestParam(name = "itemId")Integer itemId,
                                         @RequestParam(name = "promoId",required = false)Integer promoId) throws BusinessException {
         String token = httpServletRequest.getParameterMap().get("token")[0];
         if(StringUtils.isEmpty(token)){
@@ -89,10 +89,6 @@ public class OrderController extends BaseController{
         }
 
 
-       //先判断库存是否售罄
-        if(redisTemplate.hasKey("promo_item_stock_invalid_"+itemId)){
-            throw new BusinessException(EnumBusinessError.STOCK_NOT_ENOUGH);
-        }
        //创建订单之前,初始化库存流水init状态
         String stockLogId = itemService.initStockLog(itemId,amount);
 

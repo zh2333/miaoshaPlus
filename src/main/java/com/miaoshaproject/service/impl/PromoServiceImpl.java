@@ -63,12 +63,17 @@ public class PromoServiceImpl implements PromoService {
 
         //将库存同步到redis缓存中
         redisTemplate.opsForValue().set("promo_item_stock_"+itemModel.getId(),itemModel.getStock());
+
+        redisTemplate.opsForValue().set("promo_door_count_"+promoId,itemModel.getStock()*5);
     }
 
     @Override
     public String generateSecondKillToken(Integer promoId,Integer itemId, Integer userId) {
 
-
+        //先判断库存是否售罄
+        if(redisTemplate.hasKey("promo_item_stock_invalid_"+itemId)){
+           return null;
+        }
         PromoDo promoDo = promoDoMapper.selectByPrimaryKey(promoId);
 
         PromoModel promoModel = convertFromDateObject(promoDo);
@@ -96,6 +101,12 @@ public class PromoServiceImpl implements PromoService {
         //校验用户
         UserModel userModel = userService.getUserByIdInCache(userId);
         if(userModel == null){
+            return null;
+        }
+
+        //获取秒杀大闸的count数量
+        long result =  redisTemplate.opsForValue().increment("promo_door_count_"+promoId,-1);
+        if(result < 0) {
             return null;
         }
 
