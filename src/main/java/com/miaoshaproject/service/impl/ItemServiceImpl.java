@@ -219,7 +219,6 @@ public class ItemServiceImpl implements ItemService {
         itemModel.setPrice(new BigDecimal(itemDo.getPrice()));
         itemModel.setStock(itemStockDo.getStock());
 
-
         return itemModel;
     }
 }
